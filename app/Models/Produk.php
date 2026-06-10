@@ -6,5 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Produk extends Model
 {
-    //
+    public function kategori(){
+        return $this->belongsTo(Kategori::class);
+    }
+
+    public function detailTransaksi(){
+        return $this->hasMany(DetailTransaksi::class);
+    }
 }
