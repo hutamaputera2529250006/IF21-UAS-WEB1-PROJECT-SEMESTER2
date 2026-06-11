@@ -12,7 +12,7 @@ class KategoriController extends Controller
      */
     public function index()
     {
-        $kategoris = Kategori::orderBy('nama_kategori')->paginate(10);
+        $kategoris = Kategori::withCount('produks')->orderBy('nama_kategori')->paginate(10);
         return view('kategori.index',compact('kategoris'));
     }
 
@@ -64,6 +64,8 @@ class KategoriController extends Controller
             'nama_kategori'=>'required|string|max:100|unique:kategoris,nama_kategori,'. $kategori->id,
             'deskripsi' => 'nullable|string',
         ]);
+        $kategori->update($request->only('nama_kategori','deskripsi'));
+        return redirect()->route('kategori.index')->with('success','Kategori berhasil diupdate');
     }
 
     /**

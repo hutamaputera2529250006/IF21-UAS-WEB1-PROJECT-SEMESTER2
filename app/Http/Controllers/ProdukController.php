@@ -13,7 +13,7 @@ class ProdukController extends Controller
      */
     public function index()
     {
-        $produk = Produk::with('kategori')->oderBy('nama_produk')->paginate(10);
+        $produks = Produk::with('kategori')->orderBy('nama_produk')->paginate(10);
         return view('produk.index',compact('produks'));
     }
 
@@ -32,13 +32,18 @@ class ProdukController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kategori_id'=>'required|exists:kategori,id',
-            'nama_produk'=>'required|string|max:150',
-            'harga_beli'=>'required|numeric|min:0',
-            'harga_jual'=>'required|numeric|min:0',
-            'stok'=>'required|integer|min:0',
-            'deskripsi'=>'nullable|string',
+            'kategori_id' => 'required|exists:kategoris,id',
+            'nama_produk' => 'required|string|max:150',
+            'harga_beli'  => 'required|numeric|min:0',
+            'harga_jual'  => 'required|numeric|min:0',
+            'stok'        => 'required|integer|min:0',
+            'deskripsi'   => 'nullable|string',
         ]);
+
+        Produk::create($request->only(
+            'kategori_id','nama_produk','harga_beli','harga_jual','stok','deskripsi'
+        ));
+        return redirect()->route('produk.index')->with('success','Produk berhasil ditambahkan');
     }
 
     /**
@@ -64,7 +69,7 @@ class ProdukController extends Controller
     public function update(Request $request, Produk $produk)
     {
         $request->validate([
-            'kategori_id'=>'required|exist:kategori,id',
+            'kategori_id'=>'required|exists:kategoris,id',
             'nama_produk'=>'required|string|max:150',
             'harga_beli'=>'required|numeric|min:0',
             'harga_jual'=>'required|numeric|min:0',

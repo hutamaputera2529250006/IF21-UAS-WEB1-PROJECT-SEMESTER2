@@ -26,7 +26,7 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-            return view('dashboard',compact(
+            return view('dashboard.index',compact(
                 'totalKategori','totalProduk','totalKaryawan','totalTransaksi','omsetBulanIni','modalBulanIni',
                 'profitBulanIni','transaksiTerbaru'
             ));
