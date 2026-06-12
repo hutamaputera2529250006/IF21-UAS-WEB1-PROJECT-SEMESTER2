@@ -268,9 +268,14 @@
         }
         .form-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
         .badge { border-radius: 6px; font-size: 11px; }
+        @media print {
+            #sidebar, #topbar { display: none !important; }
+            #content { margin: 0 !important; padding: 0 !important; }
+        }
     </style>
 
     @stack('styles')
+
 </head>
 <body>
 
