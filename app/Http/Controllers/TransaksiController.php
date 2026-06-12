@@ -8,9 +8,6 @@ use App\Models\Produk;
 use App\Models\Transaksi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use League\CommonMark\Extension\DescriptionList\Renderer\DescriptionTermRenderer;
-
-use function GuzzleHttp\describe_type;
 
 class TransaksiController extends Controller
 {
@@ -28,13 +25,27 @@ class TransaksiController extends Controller
      */
     public function create()
     {
-        $karyawans = Karyawan::orderBy('nama_karyawan')->get();
-        $produks = Produk::with('kategori')->orderBy('nama_produk')->get();
-        $kodeTransaksi = 'TRX-'.now()->format('Ymd').'-'.str_pad(
-            Transaksi::whereDate('created_at',today())->count()+1,3,'0',STR_PAD_LEFT
-        );
-        return view('transaksi.create',compact('karyawans','produks','kodeTransaksi'));
-    }
+    $karyawans = Karyawan::orderBy('nama_karyawan')->get();
+    $produks = Produk::where('stok', '>', 0)
+        ->orderBy('nama_produk')
+        ->get()
+        ->map(function($p) {
+            return [
+                'id'         => $p->id,
+                'nama'       => $p->nama_produk,
+                'stok'       => (int)$p->stok,
+                'harga_beli' => (float)$p->harga_beli,
+                'harga_jual' => (float)$p->harga_jual,
+            ];
+        })->values();
+
+    $kodeTransaksi = 'TRX-' . now()->format('Ymd') . '-' . str_pad(
+        Transaksi::whereDate('created_at', today())->count() + 1,
+        3, '0', STR_PAD_LEFT
+    );
+
+    return view('transaksi.create', compact('karyawans', 'produks', 'kodeTransaksi'));
+}
 
     /**
      * Store a newly created resource in storage.
@@ -42,14 +53,25 @@ class TransaksiController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'karyawan_id'=>'required|exists:karyawan,id',
+            'karyawan_id'=>'required|exists:karyawans,id',
             'kode_transaksi'=>'required|string|unique:transaksis',
             'tanggal_transaksi'=>'required|date',
             'keterangan'=>'nullable|string',
-            'produk_id'=>'required|array|min:1',
-            'produk_id.*'=>'exists:produks,id',
-            'jumlah.*'=>'required|integer|min:1',
+            'items' => 'required|array|min:1',
+            'items.*.produk_id' => 'required|exists:produks,id',
+            'items.*.jumlah' => 'required|integer|min:1',
+            'items.*.harga_jual' => 'required|numeric|min:0',
         ]);
+
+        foreach ($request->items as $item) {
+            $produk = Produk::find($item['produk_id']);
+            if ($item['jumlah'] > $produk->stok) {
+                return back()->withErrors([
+                'items' => "Stok {$produk->nama_produk} tidak cukup. Stok tersedia: {$produk->stok}"
+            ])->withInput();
+    }
+}
+
         DB::transaction(function() use($request){
             $totalHarga =0;
             $totalModal=0;
@@ -62,24 +84,25 @@ class TransaksiController extends Controller
                 'total_modal'=>0,
                 'keterangan'=>$request->keterangan,
             ]);
-            foreach($request->produk_id as $i =>$produkId){
-                $produk = Produk::findOrFail($produkId);
-                $jumlah=$request->jumlah[$i];
-                $subtotal=$produk->harga_jual*$jumlah;
+        foreach ($request->items as $item) {
+            $produk = Produk::findOrFail($item['produk_id']);
+            $jumlah = $item['jumlah'];
+            $hargaJual = $item['harga_jual']; // pakai harga dari form, bukan dari DB
+            $subtotal = $hargaJual * $jumlah;
 
-                DetailTransaksi::create([
-                    'transaksi_id'=>$transaksi->id,
-                    'produk_id'=>$produkId,
-                    'jumlah'=>$jumlah,
-                    'harga_jual'=>$produk->harga_jual,
-                    'harga_beli'=>$produk->harga_beli,
-                    'subtotal'=>$subtotal,
-                ]);
+            DetailTransaksi::create([
+                'transaksi_id' => $transaksi->id,
+                'produk_id' => $item['produk_id'],
+                'jumlah'=> $jumlah,
+                'harga_jual'=> $hargaJual,
+                'harga_beli'=> $produk->harga_beli,
+                'subtotal'=> $subtotal,
+            ]);
 
-                $produk->decrement('stok',$jumlah);
+                $produk->decrement('stok', $jumlah);
                 $totalHarga += $subtotal;
                 $totalModal += $produk->harga_beli * $jumlah;
-            }
+        }
             $transaksi->update([
                 'total_harga'=>$totalHarga,
                 'total_modal'=>$totalModal,
@@ -123,7 +146,7 @@ class TransaksiController extends Controller
             foreach($transaksi->detailTransaksis as $detail){
                 $detail->produk->increment('stok',$detail->jumlah);
             }
-            $transaksi->detailTransaksi()->delete();
+            $transaksi->detailTransaksis()->delete();
             $transaksi->delete();
         });
         return redirect()->route('transaksi.index')->with('success','Transaksi berhasil dihapus');

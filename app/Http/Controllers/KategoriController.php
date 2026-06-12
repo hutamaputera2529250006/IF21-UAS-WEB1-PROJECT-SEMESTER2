@@ -73,6 +73,11 @@ class KategoriController extends Controller
      */
     public function destroy(Kategori $kategori)
     {
+        if($kategori->produks()->exists()){
+            return redirect()->route('kategori.index')->with('error','Kategori "'.$kategori->nama_kategori.'" tidak bisa dihapus karena masih memiliki '.
+                $kategori->produks()->count().' produk');
+        }
+
         $kategori->delete();
         return redirect()->route('kategori.index')->with('success','Kategori berhasil dihapus');
     }
