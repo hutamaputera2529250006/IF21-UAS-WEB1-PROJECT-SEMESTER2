@@ -48,9 +48,13 @@ class LaporanController extends Controller
         $totalModal  = $transaksis->sum('total_modal');
         $totalProfit = $totalOmset - $totalModal;
 
+        $dari   = $request->input('dari',   now()->startOfWeek()->toDateString());
+        $sampai = $request->input('sampai', now()->endOfWeek()->toDateString());
+        $tanggal = $request->input('tanggal', today()->toDateString());
+
         return view('laporan.index', compact(
             'transaksis', 'totalOmset', 'totalModal',
-            'totalProfit', 'periode', 'tahun', 'bulan', 'title'
+            'totalProfit', 'periode', 'tahun', 'bulan', 'title','tanggal','dari','sampai'
         ));
     }
 
@@ -90,7 +94,7 @@ class LaporanController extends Controller
         $transaksis = $query->with('karyawan')->orderByDesc('tanggal_transaksi')->get();
 
         $headers = [
-            'Content-Type'        => 'text/csv',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
         ];
 
